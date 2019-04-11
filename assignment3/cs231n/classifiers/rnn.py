@@ -140,7 +140,26 @@ class CaptioningRNN(object):
         # Note also that you are allowed to make use of functions from layers.py   #
         # in your implementation, if needed.                                       #
         ############################################################################
-        pass
+        # features: N,D
+        # captions: N,T
+        # W_proj: D,H
+        # b_proj: H
+        # 
+        ao, ac = affine_forward(features, W_proj, b_proj)
+        weo, wec = word_embedding_forward(captions_in, W_embed)
+        if self.cell_type == 'rnn':
+          out, cache = rnn_forward(weo,ao,Wx,Wh,b)
+        elif self.cell_type == 'lstm':
+          out, cache = lstm_forward(weo,ao,Wx,Wh,b)
+        tao,tac = temporal_affine_forward(out,W_vocab,b_vocab)
+        loss, dtao = temporal_softmax_loss(tao,captions_out,mask)
+        dout, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dtao, tac)
+        if self.cell_type == 'rnn':
+          dweo, dao,grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dout,cache)
+        elif self.cell_type == 'lstm':
+          dweo, dao,grads['Wx'], grads['Wh'], grads['b'] = lstm_backward(dout,cache)
+        grads['W_embed']= word_embedding_backward(dweo,wec)
+        dfeatures, grads['W_proj'], grads['b_proj'] = affine_backward(dao,ac)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
